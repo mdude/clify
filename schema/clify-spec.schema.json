@@ -1,0 +1,916 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ClifySpec",
+  "description": "Root of a .clify.yaml spec file.",
+  "type": "object",
+  "required": [
+    "auth",
+    "commands",
+    "meta",
+    "transport"
+  ],
+  "properties": {
+    "auth": {
+      "$ref": "#/definitions/Auth"
+    },
+    "commands": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Command"
+      }
+    },
+    "config": {
+      "default": {
+        "path": null
+      },
+      "allOf": [
+        {
+          "$ref": "#/definitions/Config"
+        }
+      ]
+    },
+    "groups": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Group"
+      }
+    },
+    "hooks": {
+      "default": null,
+      "anyOf": [
+        {
+          "$ref": "#/definitions/GlobalHooks"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "meta": {
+      "$ref": "#/definitions/Meta"
+    },
+    "output": {
+      "default": {
+        "default_format": "json",
+        "pretty": true,
+        "table": {
+          "max_width": null,
+          "style": "plain"
+        }
+      },
+      "allOf": [
+        {
+          "$ref": "#/definitions/Output"
+        }
+      ]
+    },
+    "transport": {
+      "$ref": "#/definitions/Transport"
+    }
+  },
+  "definitions": {
+    "ApiKeyLocation": {
+      "type": "string",
+      "enum": [
+        "header",
+        "query"
+      ]
+    },
+    "Auth": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "none"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "env",
+            "location",
+            "name",
+            "type"
+          ],
+          "properties": {
+            "env": {
+              "type": "string"
+            },
+            "location": {
+              "$ref": "#/definitions/ApiKeyLocation"
+            },
+            "name": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "api-key"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "env",
+            "type"
+          ],
+          "properties": {
+            "env": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "token"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "env_pass",
+            "env_user",
+            "type"
+          ],
+          "properties": {
+            "env_pass": {
+              "type": "string"
+            },
+            "env_user": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "basic"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "env_client_id",
+            "env_client_secret",
+            "grant",
+            "token_url",
+            "type"
+          ],
+          "properties": {
+            "authorize_url": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "custom": {
+              "default": null,
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/OAuthCustom"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "env_client_id": {
+              "type": "string"
+            },
+            "env_client_secret": {
+              "type": "string"
+            },
+            "grant": {
+              "$ref": "#/definitions/OAuthGrant"
+            },
+            "scopes": {
+              "default": [],
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "token_url": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "oauth2"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "Command": {
+      "type": "object",
+      "required": [
+        "description",
+        "name",
+        "request"
+      ],
+      "properties": {
+        "aliases": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "description": {
+          "type": "string"
+        },
+        "examples": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Example"
+          }
+        },
+        "group": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "hidden": {
+          "default": false,
+          "type": "boolean"
+        },
+        "hooks": {
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/CommandHooks"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "long_description": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "params": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Param"
+          }
+        },
+        "request": {
+          "$ref": "#/definitions/Request"
+        },
+        "response": {
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Response"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "CommandHooks": {
+      "type": "object",
+      "properties": {
+        "after": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "before": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "on_error": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "Config": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "ContentType": {
+      "type": "string",
+      "enum": [
+        "json",
+        "form",
+        "multipart"
+      ]
+    },
+    "Example": {
+      "type": "object",
+      "required": [
+        "command",
+        "description"
+      ],
+      "properties": {
+        "command": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "FileType": {
+      "type": "string",
+      "enum": [
+        "path",
+        "stdin",
+        "both"
+      ]
+    },
+    "GlobalHookDef": {
+      "type": "object",
+      "properties": {
+        "after": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "before": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "GlobalHooks": {
+      "type": "object",
+      "properties": {
+        "global": {
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/GlobalHookDef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "Group": {
+      "type": "object",
+      "required": [
+        "description",
+        "name"
+      ],
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "HttpMethod": {
+      "type": "string",
+      "enum": [
+        "GET",
+        "POST",
+        "PUT",
+        "PATCH",
+        "DELETE"
+      ]
+    },
+    "Meta": {
+      "type": "object",
+      "required": [
+        "description",
+        "name",
+        "version"
+      ],
+      "properties": {
+        "author": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "description": {
+          "type": "string"
+        },
+        "homepage": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "license": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "long_description": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      }
+    },
+    "OAuthCustom": {
+      "type": "object",
+      "properties": {
+        "content_type": {
+          "default": "json",
+          "allOf": [
+            {
+              "$ref": "#/definitions/ContentType"
+            }
+          ]
+        },
+        "expiry_field": {
+          "default": "expires_in",
+          "type": "string"
+        },
+        "extra_params": {
+          "default": {},
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "token_field": {
+          "default": "access_token",
+          "type": "string"
+        }
+      }
+    },
+    "OAuthGrant": {
+      "type": "string",
+      "enum": [
+        "client_credentials",
+        "authorization_code",
+        "device_code"
+      ]
+    },
+    "Output": {
+      "type": "object",
+      "properties": {
+        "default_format": {
+          "default": "json",
+          "allOf": [
+            {
+              "$ref": "#/definitions/OutputFormat"
+            }
+          ]
+        },
+        "pretty": {
+          "default": true,
+          "type": "boolean"
+        },
+        "table": {
+          "default": {
+            "max_width": null,
+            "style": "plain"
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/TableConfig"
+            }
+          ]
+        }
+      }
+    },
+    "OutputFormat": {
+      "type": "string",
+      "enum": [
+        "json",
+        "table",
+        "csv"
+      ]
+    },
+    "Pagination": {
+      "type": "object",
+      "required": [
+        "param",
+        "type"
+      ],
+      "properties": {
+        "default_page_size": {
+          "default": null,
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "next_path": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "page_size_param": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "param": {
+          "type": "string"
+        },
+        "total_path": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "type": {
+          "$ref": "#/definitions/PaginationType"
+        }
+      }
+    },
+    "PaginationType": {
+      "type": "string",
+      "enum": [
+        "offset",
+        "cursor",
+        "link"
+      ]
+    },
+    "Param": {
+      "type": "object",
+      "required": [
+        "description",
+        "name",
+        "type"
+      ],
+      "properties": {
+        "default": {
+          "default": null
+        },
+        "description": {
+          "type": "string"
+        },
+        "env": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "file_type": {
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/FileType"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "hidden": {
+          "default": false,
+          "type": "boolean"
+        },
+        "mime_type": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "required": {
+          "default": false,
+          "type": "boolean"
+        },
+        "separator": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "short": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source": {
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ParamSource"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "type": {
+          "$ref": "#/definitions/ParamType"
+        },
+        "validation": {
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Validation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "values": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "ParamSource": {
+      "type": "string",
+      "enum": [
+        "path",
+        "query",
+        "body",
+        "header"
+      ]
+    },
+    "ParamType": {
+      "type": "string",
+      "enum": [
+        "string",
+        "integer",
+        "float",
+        "boolean",
+        "enum",
+        "array",
+        "file",
+        "object"
+      ]
+    },
+    "Request": {
+      "type": "object",
+      "required": [
+        "method",
+        "path"
+      ],
+      "properties": {
+        "content_type": {
+          "default": "json",
+          "allOf": [
+            {
+              "$ref": "#/definitions/ContentType"
+            }
+          ]
+        },
+        "headers": {
+          "default": {},
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "method": {
+          "$ref": "#/definitions/HttpMethod"
+        },
+        "path": {
+          "type": "string"
+        }
+      }
+    },
+    "Response": {
+      "type": "object",
+      "properties": {
+        "error_path": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "pagination": {
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Pagination"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "success_path": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "success_status": {
+          "default": [
+            200
+          ],
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint16",
+            "minimum": 0.0
+          }
+        }
+      }
+    },
+    "TableConfig": {
+      "type": "object",
+      "properties": {
+        "max_width": {
+          "default": null,
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "style": {
+          "default": "plain",
+          "allOf": [
+            {
+              "$ref": "#/definitions/TableStyle"
+            }
+          ]
+        }
+      }
+    },
+    "TableStyle": {
+      "type": "string",
+      "enum": [
+        "plain",
+        "rounded",
+        "sharp",
+        "markdown"
+      ]
+    },
+    "Transport": {
+      "type": "object",
+      "required": [
+        "base_url",
+        "type"
+      ],
+      "properties": {
+        "base_url": {
+          "type": "string"
+        },
+        "headers": {
+          "default": {},
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "retries": {
+          "default": 0,
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "timeout": {
+          "default": 30,
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "type": {
+          "$ref": "#/definitions/TransportType"
+        }
+      }
+    },
+    "TransportType": {
+      "type": "string",
+      "enum": [
+        "rest"
+      ]
+    },
+    "Validation": {
+      "type": "object",
+      "properties": {
+        "custom": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "max": {
+          "default": null,
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "max_length": {
+          "default": null,
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0.0
+        },
+        "min": {
+          "default": null,
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "min_length": {
+          "default": null,
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0.0
+        },
+        "pattern": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    }
+  }
+}

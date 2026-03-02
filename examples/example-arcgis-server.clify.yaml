@@ -138,6 +138,7 @@ commands:
         source: body
       - name: f
         type: string
+        description: "Response format"
         default: "json"
         source: query
         hidden: true
