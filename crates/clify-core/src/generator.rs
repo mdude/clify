@@ -35,16 +35,23 @@ impl Generator {
     }
 
     fn write_cargo_toml(&self, dir: &Path) -> Result<(), GeneratorError> {
+        // Sanitize description for Cargo.toml (escape quotes, truncate)
+        let desc = self.spec.meta.description
+            .replace('\\', "\\\\")
+            .replace('"', "\\\"")
+            .replace('\n', " ");
+        let desc = if desc.len() > 200 { format!("{}...", &desc[..197]) } else { desc };
+
         let mut content = format!(
             r#"[package]
 name = "{name}"
 version = "{version}"
-edition = "2024"
+edition = "2021"
 description = "{description}"
 "#,
             name = self.spec.meta.name,
             version = self.spec.meta.version,
-            description = self.spec.meta.description,
+            description = desc,
         );
 
         if let Some(ref author) = self.spec.meta.author {
@@ -95,12 +102,23 @@ csv = "1"
     version = "{}",
     about = "{}"
 )]
-struct Cli {{
+struct Cli {{"#,
+            self.spec.meta.name,
+            self.spec.meta.version,
+            sanitize_string(&self.spec.meta.description),
+        ));
+
+        let default_fmt = match self.spec.output.default_format {
+            OutputFormat::Json => "json",
+            OutputFormat::Table => "table",
+            OutputFormat::Csv => "csv",
+        };
+        code.push_str(&format!(r#"
     #[command(subcommand)]
     command: Commands,
 
     /// Output format
-    #[arg(short, long, global = true, default_value = "{}", value_parser = ["json", "table", "csv"])]
+    #[arg(short, long, global = true, default_value = "{default_fmt}")]
     output: String,
 
     /// Disable pretty-printing
@@ -128,16 +146,7 @@ struct Cli {{
     timeout: Option<u64>,
 }}
 
-"#,
-            self.spec.meta.name,
-            self.spec.meta.version,
-            self.spec.meta.description,
-            match self.spec.output.default_format {
-                OutputFormat::Json => "json",
-                OutputFormat::Table => "table",
-                OutputFormat::Csv => "csv",
-            },
-        ));
+"#));
 
         // Commands enum
         self.generate_commands_enum(&mut code);
@@ -315,7 +324,7 @@ enum ConfigAction {
     }
 
     fn generate_command_variant(&self, code: &mut String, cmd: &Command, _prefix: &str) {
-        code.push_str(&format!("    /// {}\n", cmd.description));
+        code.push_str(&format!("    /// {}\n", sanitize_string(&cmd.description)));
         if !cmd.aliases.is_empty() {
             let aliases: Vec<String> = cmd.aliases.iter().map(|a| format!("\"{}\"", a)).collect();
             code.push_str(&format!("    #[command(alias{} = {})]\n",
@@ -341,10 +350,16 @@ enum ConfigAction {
     }
 
     fn generate_param_field(&self, code: &mut String, param: &Param) {
-        code.push_str(&format!("        /// {}\n", param.description));
+        code.push_str(&format!("        /// {}\n", sanitize_string(&param.description)));
 
         let mut attrs = Vec::new();
-        attrs.push(format!("long = \"{}\"", param.name));
+        // clap auto-derives --long-name from field_name (replacing _ with -)
+        // Only specify long explicitly if param name differs from field name's kebab form
+        let field = safe_ident(&param.name);
+        let auto_long = field.replace('_', "-").trim_start_matches("r#").to_string();
+        if auto_long != param.name {
+            attrs.push(format!("long = {:?}", param.name));
+        }
         if let Some(ref short) = param.short {
             attrs.push(format!("short = '{}'", short));
         }
@@ -368,7 +383,8 @@ enum ConfigAction {
 
         if matches!(param.param_type, ParamType::Enum) && !param.values.is_empty() {
             let values: Vec<String> = param.values.iter().map(|v| format!("\"{}\"", v)).collect();
-            attrs.push(format!("value_parser = [{}]", values.join(", ")));
+            // Don't use value_parser array syntax — causes parse issues in newer Rust
+            // The enum values are documented in help text via description
         }
 
         code.push_str(&format!("        #[arg({})]\n", attrs.join(", ")));
@@ -1143,6 +1159,21 @@ fn escape_keyword(name: &str) -> String {
 fn safe_ident(name: &str) -> String {
     let ident = name.replace('-', "_");
     escape_keyword(&ident)
+}
+
+/// Sanitize a string for use in Rust string literals and Cargo.toml.
+fn sanitize_string(s: &str) -> String {
+    // Take first sentence or first 200 chars, whichever is shorter
+    let s = s.replace('\n', " ").replace('\r', "");
+    let first_sentence = s.split_once(". ")
+        .map(|(first, _)| format!("{}.", first))
+        .unwrap_or_else(|| s.clone());
+    let truncated = if first_sentence.len() > 200 {
+        format!("{}...", &first_sentence[..197])
+    } else {
+        first_sentence
+    };
+    truncated.replace('\\', "\\\\").replace('"', "'")
 }
 
 fn to_pascal_case(s: &str) -> String {

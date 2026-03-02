@@ -1,6 +1,8 @@
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
+mod tui;
+
 #[derive(Parser)]
 #[command(
     name = "clify",
@@ -78,20 +80,88 @@ fn main() -> anyhow::Result<()> {
         None => {
             // No subcommand — launch TUI
             if atty::is(atty::Stream::Stdout) {
-                println!("🚀 Launching Clify TUI... (coming soon)");
-                // TODO: launch ratatui TUI in Phase 4
+                tui::run_tui()?;
             } else {
                 use clap::CommandFactory;
                 Cli::command().print_help()?;
             }
         }
         Some(Commands::Init { output }) => {
-            println!("📝 Initializing new .clify.yaml in {:?}...", output);
-            // TODO: implement in Phase 4 (TUI wizard)
+            let spec_path = output.join("api.clify.yaml");
+            if spec_path.exists() {
+                eprintln!("⚠ {:?} already exists. Remove it first.", spec_path);
+                std::process::exit(1);
+            }
+            let template = r#"# Clify Spec — edit this file to define your CLI
+# Docs: https://github.com/mdude/clify/blob/main/docs/CLIFY-SPEC.md
+
+meta:
+  name: my-api
+  version: "0.1.0"
+  description: "CLI for My API"
+
+transport:
+  type: rest
+  base_url: "https://api.example.com/v1"
+  timeout: 30
+  retries: 0
+
+auth:
+  type: none
+  # type: api-key
+  # location: header
+  # name: "Authorization"
+  # env: MY_API_KEY
+
+output:
+  default_format: json
+  pretty: true
+
+groups: []
+
+commands:
+  - name: health
+    description: "Health check endpoint"
+    request:
+      method: GET
+      path: "/health"
+    response:
+      success_status: [200]
+"#;
+            std::fs::create_dir_all(&output)?;
+            std::fs::write(&spec_path, template)?;
+            println!("📝 Created {:?}", spec_path);
+            println!("   Edit it, then run: clify generate {:?}", spec_path);
         }
         Some(Commands::Scan { from, source, output }) => {
-            println!("🔍 Scanning {} spec from {}...", from, source);
-            // TODO: implement in Phase 3
+            let content = if source.starts_with("http://") || source.starts_with("https://") {
+                println!("🌐 Fetching spec from {}...", source);
+                let rt = tokio::runtime::Runtime::new()?;
+                let (content, detected_format) = rt.block_on(clify_core::scanner::Scanner::from_url(&source))
+                    .map_err(|e| anyhow::anyhow!("{}", e))?;
+                println!("   Detected format: {}", detected_format);
+                content
+            } else {
+                std::fs::read_to_string(&source)
+                    .map_err(|e| anyhow::anyhow!("Failed to read {}: {}", source, e))?
+            };
+
+            println!("🔍 Scanning {} spec...", from);
+            let spec = match from.as_str() {
+                "openapi" => clify_core::scanner::Scanner::from_openapi(&content),
+                "swagger" => clify_core::scanner::Scanner::from_swagger(&content),
+                _ => Err(clify_core::scanner::ScanError::UnsupportedFormat(from.clone())),
+            }.map_err(|e| anyhow::anyhow!("{}", e))?;
+
+            let yaml = clify_core::scanner::Scanner::to_yaml(&spec)
+                .map_err(|e| anyhow::anyhow!("{}", e))?;
+            std::fs::write(&output, &yaml)?;
+
+            println!("✅ Generated {:?}", output);
+            println!("   Name:     {}", spec.meta.name);
+            println!("   Commands: {}", spec.commands.len());
+            println!("   Groups:   {}", spec.groups.len());
+            println!("\n   Review and curate the spec, then run: clify generate {:?}", output);
         }
         Some(Commands::Validate { spec }) => {
             validate_spec(&spec)?;
@@ -121,10 +191,22 @@ fn main() -> anyhow::Result<()> {
             println!("   Next: cd {} && cargo build --release", 
                 serde_yaml::from_str::<clify_core::ClifySpec>(&content).unwrap().meta.name);
         }
-        Some(Commands::Build { release, target: _ }) => {
-            let mode = if release { "release" } else { "debug" };
-            println!("🔨 Building CLI ({})...", mode);
-            // TODO: implement in Phase 5
+        Some(Commands::Build { release, target }) => {
+            let mut cmd = std::process::Command::new("cargo");
+            cmd.arg("build");
+            if release {
+                cmd.arg("--release");
+            }
+            if let Some(ref t) = target {
+                cmd.arg("--target").arg(t);
+            }
+            println!("🔨 Building...");
+            let status = cmd.status()?;
+            if status.success() {
+                println!("✅ Build succeeded!");
+            } else {
+                std::process::exit(status.code().unwrap_or(1));
+            }
         }
         Some(Commands::Schema { output }) => {
             let schema = clify_core::schema::generate_json_schema();

@@ -4,5 +4,6 @@ pub mod spec;
 pub mod validator;
 pub mod generator;
 pub mod schema;
+pub mod scanner;
 
 pub use spec::ClifySpec;

@@ -159,7 +159,7 @@ pub fn validate(spec: &ClifySpec) -> Result<(), Vec<ValidationError>> {
         }
 
         // -- Path param validation --
-        let path_placeholders: Vec<String> = regex::Regex::new(r"\{(\w+)\}")
+        let path_placeholders: Vec<String> = regex::Regex::new(r"\{([\w-]+)\}")
             .unwrap()
             .captures_iter(&cmd.request.path)
             .map(|c| c[1].to_string())
