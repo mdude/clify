@@ -1,0 +1,16 @@
+[package]
+name = "clify-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Core library for Clify — spec parsing, validation, and code generation"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_yaml = "0.9"
+serde_json = "1"
+schemars = "0.8"
+thiserror = "2"
+regex = "1"
+handlebars = "6"
+walkdir = "2"

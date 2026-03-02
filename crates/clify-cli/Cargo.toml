@@ -1,0 +1,23 @@
+[package]
+name = "clify"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Clify makes your software cliable — generate CLI tools from API specs"
+
+[[bin]]
+name = "clify"
+path = "src/main.rs"
+
+[dependencies]
+clify-core = { path = "../clify-core" }
+clap = { version = "4", features = ["derive"] }
+ratatui = "0.29"
+crossterm = "0.29"
+dialoguer = "0.11"
+console = "0.15"
+indicatif = "0.17"
+serde_yaml = "0.9"
+serde_json = "1"
+anyhow = "1"
+atty = "0.2.14"
