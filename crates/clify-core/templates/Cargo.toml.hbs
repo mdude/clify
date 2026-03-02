@@ -1,0 +1,19 @@
+[package]
+name = "{{name}}"
+version = "{{version}}"
+edition = "2024"
+description = "{{description}}"
+{{#if author}}author = "{{author}}"{{/if}}
+{{#if license}}license = "{{license}}"{{/if}}
+
+[[bin]]
+name = "{{name}}"
+path = "src/main.rs"
+
+[dependencies]
+clify-runtime = "0.1"
+clap = { version = "4", features = ["derive"] }
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"

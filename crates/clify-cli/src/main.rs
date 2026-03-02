@@ -97,8 +97,29 @@ fn main() -> anyhow::Result<()> {
             validate_spec(&spec)?;
         }
         Some(Commands::Generate { spec, output }) => {
-            println!("⚙️  Generating CLI from {:?} into {:?}...", spec, output);
-            // TODO: implement in Phase 2
+            // Parse and validate first
+            let content = std::fs::read_to_string(&spec)
+                .map_err(|e| anyhow::anyhow!("Failed to read {:?}: {}", spec, e))?;
+            let parsed: clify_core::ClifySpec = serde_yaml::from_str(&content)
+                .map_err(|e| anyhow::anyhow!("Parse error: {}", e))?;
+
+            if let Err(errors) = clify_core::validator::validate(&parsed) {
+                eprintln!("Spec validation failed:");
+                for err in &errors {
+                    eprintln!("  ✗ {}", err);
+                }
+                std::process::exit(2);
+            }
+
+            let generator = clify_core::generator::Generator::new(parsed);
+            generator.generate(&output)
+                .map_err(|e| anyhow::anyhow!("Generation failed: {}", e))?;
+
+            println!("✅ Generated CLI project at {:?}", output.join(
+                &serde_yaml::from_str::<clify_core::ClifySpec>(&content).unwrap().meta.name
+            ));
+            println!("   Next: cd {} && cargo build --release", 
+                serde_yaml::from_str::<clify_core::ClifySpec>(&content).unwrap().meta.name);
         }
         Some(Commands::Build { release, target: _ }) => {
             let mode = if release { "release" } else { "debug" };
