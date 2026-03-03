@@ -35,18 +35,14 @@ impl Generator {
     }
 
     fn write_cargo_toml(&self, dir: &Path) -> Result<(), GeneratorError> {
-        // Sanitize description for Cargo.toml (escape quotes, truncate)
-        let desc = self.spec.meta.description
-            .replace('\\', "\\\\")
-            .replace('"', "\\\"")
-            .replace('\n', " ");
-        let desc = if desc.len() > 200 { format!("{}...", &desc[..197]) } else { desc };
+        // Sanitize description for Cargo.toml
+        let desc = sanitize_string(&self.spec.meta.description);
 
         let mut content = format!(
             r#"[package]
 name = "{name}"
 version = "{version}"
-edition = "2021"
+edition = "2018"
 description = "{description}"
 "#,
             name = self.spec.meta.name,
@@ -102,23 +98,12 @@ csv = "1"
     version = "{}",
     about = "{}"
 )]
-struct Cli {{"#,
-            self.spec.meta.name,
-            self.spec.meta.version,
-            sanitize_string(&self.spec.meta.description),
-        ));
-
-        let default_fmt = match self.spec.output.default_format {
-            OutputFormat::Json => "json",
-            OutputFormat::Table => "table",
-            OutputFormat::Csv => "csv",
-        };
-        code.push_str(&format!(r#"
+struct Cli {{
     #[command(subcommand)]
     command: Commands,
 
     /// Output format
-    #[arg(short, long, global = true, default_value = "{default_fmt}")]
+    #[arg(short, long, global = true, default_value = "{}")]
     output: String,
 
     /// Disable pretty-printing
@@ -146,7 +131,16 @@ struct Cli {{"#,
     timeout: Option<u64>,
 }}
 
-"#));
+"#,
+            self.spec.meta.name,
+            self.spec.meta.version,
+            sanitize_string(&self.spec.meta.description),
+            match self.spec.output.default_format {
+                OutputFormat::Json => "json",
+                OutputFormat::Table => "table",
+                OutputFormat::Csv => "csv",
+            },
+        ));
 
         // Commands enum
         self.generate_commands_enum(&mut code);
@@ -257,7 +251,7 @@ async fn main() -> anyhow::Result<()> {
 
             for group in &self.spec.groups {
                 let variant = to_pascal_case(&group.name);
-                code.push_str(&format!("    /// {}\n", group.description));
+                code.push_str(&format!("    /// {}\n", sanitize_string(&group.description)));
                 code.push_str(&format!(
                     "    {} {{\n        #[command(subcommand)]\n        command: {}Commands,\n    }},\n",
                     variant, variant
@@ -353,13 +347,7 @@ enum ConfigAction {
         code.push_str(&format!("        /// {}\n", sanitize_string(&param.description)));
 
         let mut attrs = Vec::new();
-        // clap auto-derives --long-name from field_name (replacing _ with -)
-        // Only specify long explicitly if param name differs from field name's kebab form
-        let field = safe_ident(&param.name);
-        let auto_long = field.replace('_', "-").trim_start_matches("r#").to_string();
-        if auto_long != param.name {
-            attrs.push(format!("long = {:?}", param.name));
-        }
+        // clap derives --long-name from field_name (underscores → hyphens) automatically
         if let Some(ref short) = param.short {
             attrs.push(format!("short = '{}'", short));
         }
@@ -381,11 +369,7 @@ enum ConfigAction {
             attrs.push(format!("env = \"{}\"", env));
         }
 
-        if matches!(param.param_type, ParamType::Enum) && !param.values.is_empty() {
-            let values: Vec<String> = param.values.iter().map(|v| format!("\"{}\"", v)).collect();
-            // Don't use value_parser array syntax — causes parse issues in newer Rust
-            // The enum values are documented in help text via description
-        }
+        // Note: enum validation happens at runtime to avoid Rust edition 2021 prefix literal issues
 
         code.push_str(&format!("        #[arg({})]\n", attrs.join(", ")));
 
@@ -1163,17 +1147,14 @@ fn safe_ident(name: &str) -> String {
 
 /// Sanitize a string for use in Rust string literals and Cargo.toml.
 fn sanitize_string(s: &str) -> String {
-    // Take first sentence or first 200 chars, whichever is shorter
-    let s = s.replace('\n', " ").replace('\r', "");
-    let first_sentence = s.split_once(". ")
-        .map(|(first, _)| format!("{}.", first))
-        .unwrap_or_else(|| s.clone());
-    let truncated = if first_sentence.len() > 200 {
-        format!("{}...", &first_sentence[..197])
-    } else {
-        first_sentence
-    };
-    truncated.replace('\\', "\\\\").replace('"', "'")
+    s.replace('\\', "")
+        .replace('"', "")
+        .replace('\'', "")
+        .replace('\n', " ")
+        .replace('\r', "")
+        .chars()
+        .take(200)
+        .collect()
 }
 
 fn to_pascal_case(s: &str) -> String {

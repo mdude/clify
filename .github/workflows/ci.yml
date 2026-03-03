@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build
+        run: cargo build --verbose
+      - name: Test
+        run: cargo test --verbose
+      - name: Clippy
+        run: cargo clippy -- -D warnings
+        if: matrix.os == 'ubuntu-latest'
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build Clify
+        run: cargo build
+      - name: Validate example spec
+        run: cargo run -- validate examples/example-arcgis-server.clify.yaml
+      - name: Generate CLI from example
+        run: |
+          cargo run -- generate examples/example-arcgis-server.clify.yaml --output /tmp/e2e
+          cd /tmp/e2e/arcgis-server
+          cargo build
