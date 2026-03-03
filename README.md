@@ -6,9 +6,50 @@ Generate fully-featured CLI tools from API specifications. Define your API comma
 
 ## Installation
 
-### From source (recommended)
+### Pre-built binaries (fastest)
 
-Requires [Rust](https://rustup.rs/) 1.75+.
+Download the latest binary for your platform from [GitHub Releases](https://github.com/mdude/clify/releases/latest):
+
+| Platform | Binary |
+|----------|--------|
+| macOS (Apple Silicon) | `clify-macos-aarch64` |
+| macOS (Intel) | `clify-macos-x86_64` |
+| Linux (x86_64) | `clify-linux-x86_64` |
+| Linux (aarch64) | `clify-linux-aarch64` |
+
+```bash
+# Example: macOS Apple Silicon
+curl -L -o clify https://github.com/mdude/clify/releases/latest/download/clify-macos-aarch64
+chmod +x clify
+sudo mv clify /usr/local/bin/
+
+clify --version
+```
+
+> **Note:** Generated CLIs still need Rust to compile. Clify itself is just the generator — it produces a Rust project that you then `cargo build`.
+
+### From source
+
+#### Prerequisites
+
+**Rust** (1.75+) and **Cargo** are required.
+
+```bash
+# Check if Rust is installed
+rustc --version   # expect: rustc 1.75.0 or higher
+
+# Check if Cargo is installed
+cargo --version   # expect: cargo 1.75.0 or higher
+```
+
+If either is missing, install both with [rustup](https://rustup.rs/):
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source "$HOME/.cargo/env"
+```
+
+#### Install
 
 ```bash
 git clone https://github.com/mdude/clify.git
@@ -18,7 +59,7 @@ cargo install --path crates/clify-cli
 
 This installs the `clify` binary to `~/.cargo/bin/` (make sure it's in your `PATH`).
 
-### Build without installing
+#### Build without installing
 
 ```bash
 git clone https://github.com/mdude/clify.git
@@ -28,7 +69,7 @@ cargo build --release
 
 The binary will be at `target/release/clify`.
 
-### Verify installation
+### Verify
 
 ```bash
 clify --version
