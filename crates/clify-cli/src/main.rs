@@ -71,6 +71,28 @@ enum Commands {
         #[arg(short, long)]
         output: Option<PathBuf>,
     },
+
+    /// Generate agent skills (SKILL.md files) from a .clify.yaml spec
+    Skills {
+        /// Path to the spec file
+        spec: PathBuf,
+
+        /// Output directory for the skills
+        #[arg(short, long, default_value = ".")]
+        output: PathBuf,
+
+        /// Skip per-command action skills (generate only shared + service)
+        #[arg(long)]
+        no_actions: bool,
+
+        /// Skip example generation in action skills
+        #[arg(long)]
+        no_examples: bool,
+
+        /// Category for skill metadata
+        #[arg(long)]
+        category: Option<String>,
+    },
 }
 
 fn main() -> anyhow::Result<()> {
@@ -207,6 +229,53 @@ commands:
             } else {
                 std::process::exit(status.code().unwrap_or(1));
             }
+        }
+        Some(Commands::Skills {
+            spec,
+            output,
+            no_actions,
+            no_examples,
+            category,
+        }) => {
+            let content = std::fs::read_to_string(&spec)
+                .map_err(|e| anyhow::anyhow!("Failed to read {:?}: {}", spec, e))?;
+            let parsed: clify_core::ClifySpec = serde_yaml::from_str(&content)
+                .map_err(|e| anyhow::anyhow!("Parse error: {}", e))?;
+
+            if let Err(errors) = clify_core::validator::validate(&parsed) {
+                eprintln!("Spec validation failed:");
+                for err in &errors {
+                    eprintln!("  ✗ {}", err);
+                }
+                std::process::exit(2);
+            }
+
+            let opts = clify_core::skills::SkillGenOptions {
+                actions: !no_actions,
+                examples: !no_examples,
+                category,
+            };
+
+            let result = clify_core::skills::generate_skills(&parsed, &output, &opts)?;
+
+            println!("🤖 Generated {} agent skills at {:?}", result.total_files, result.skills_dir);
+            println!();
+            println!("   📘 Shared:  {}", result.shared_skill);
+            if !result.service_skills.is_empty() {
+                println!("   📗 Services ({}):", result.service_skills.len());
+                for s in &result.service_skills {
+                    println!("      - {s}");
+                }
+            }
+            if !result.action_skills.is_empty() {
+                println!("   📙 Actions ({}):", result.action_skills.len());
+                for s in &result.action_skills {
+                    println!("      - {s}");
+                }
+            }
+            println!();
+            println!("   These skills teach AI agents how to use your CLI.");
+            println!("   Install them with your agent framework (e.g., OpenClaw skills).");
         }
         Some(Commands::Schema { output }) => {
             let schema = clify_core::schema::generate_json_schema();
